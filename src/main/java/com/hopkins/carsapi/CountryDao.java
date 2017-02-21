@@ -11,23 +11,15 @@ import java.util.List;
 public class CountryDao {
     private static final String TABLE_NAME = "country";
     
-    private final Connection conn;
-        
-    public CountryDao() {
-        conn = DatabaseConnectionProvider.connect();
-    }
-    
     public int getCount() {
-        try {
+        String sql = "SELECT COUNT(*) FROM " + TABLE_NAME;
+        try (Connection conn = DatabaseConnectionProvider.connect();
             Statement st = conn.createStatement();
-            ResultSet rs = st.executeQuery(
-                    "SELECT COUNT(*) FROM " + TABLE_NAME);
+            ResultSet rs = st.executeQuery(sql)) {
             int count = 0;
             if (rs.next()) {
                 count = rs.getInt(1);
             }
-            rs.close();
-            st.close();
             return count;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading count from MySQL", ex);
@@ -36,17 +28,15 @@ public class CountryDao {
     
     public List<Country> getAll() {
         List<Country> list = new ArrayList<>();
-        try {
+        String sql = "SELECT code, name"
+                + " FROM " + TABLE_NAME
+                + " ORDER BY name ASC";
+        try (Connection conn = DatabaseConnectionProvider.connect();
             Statement st = conn.createStatement();
-            ResultSet rs = st.executeQuery(
-                    "SELECT code, name"
-                            + " FROM " + TABLE_NAME
-                            + " ORDER BY name ASC");
+            ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) {
                 list.add(buildCountry(rs));
             }
-            st.close();
-            rs.close();
             return list;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading count from MySQL", ex);
@@ -54,21 +44,20 @@ public class CountryDao {
     }
     
     public Country getByCode(String countryCode) {
-        try {
-            PreparedStatement st = conn.prepareStatement(
-                    "SELECT code, name"
-                            + " FROM " + TABLE_NAME
-                            + " WHERE code = ?"
-                            + " ORDER BY name ASC");
+        String sql = "SELECT code, name"
+                + " FROM " + TABLE_NAME
+                + " WHERE code = ?"
+                + " ORDER BY name ASC";
+        try (Connection conn = DatabaseConnectionProvider.connect();
+            PreparedStatement st = conn.prepareStatement(sql)) {
             st.setString(1, countryCode);
-            ResultSet rs = st.executeQuery();
-            Country country = null;
-            if (rs.next()) {
-                country = buildCountry(rs);
+            try (ResultSet rs = st.executeQuery()) {
+                Country country = null;
+                if (rs.next()) {
+                    country = buildCountry(rs);
+                }
+                return country;
             }
-            st.close();
-            rs.close();
-            return country;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading count from MySQL", ex);
         }

@@ -10,23 +10,17 @@ import java.util.List;
 
 public class MakeDao {
     private static final String TABLE_NAME = "make";
-    private final Connection conn;
-        
-    public MakeDao() {
-        conn = DatabaseConnectionProvider.connect();
-    }
     
     public int getCount() {
-        try {
+        String sql = "SELECT COUNT(*)"
+                + " FROM " + TABLE_NAME;
+        try (Connection conn = DatabaseConnectionProvider.connect();
             Statement st = conn.createStatement();
-            ResultSet rs = st.executeQuery(
-                    "SELECT COUNT(*) FROM " + TABLE_NAME);
+            ResultSet rs = st.executeQuery(sql)){
             int count = 0;
             if (rs.next()) {
                 count = rs.getInt(1);
             }
-            rs.close();
-            st.close();
             return count;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading from MySQL", ex);
@@ -35,17 +29,15 @@ public class MakeDao {
     
     public List<Make> getAll() {
         List<Make> list = new ArrayList<>();
-        try {
-            PreparedStatement st = conn.prepareStatement(
-                    "SELECT id, name, countryCode"
-                            + " FROM " + TABLE_NAME
-                            + " ORDER BY name ASC");
-            ResultSet rs = st.executeQuery();
+        String sql = "SELECT id, name, countryCode"
+                + " FROM " + TABLE_NAME
+                + " ORDER BY name ASC";
+        try (Connection conn = DatabaseConnectionProvider.connect();
+            PreparedStatement st = conn.prepareStatement(sql);
+            ResultSet rs = st.executeQuery()) {
             while (rs.next()) {
                 list.add(buildMake(rs));
             }
-            rs.close();
-            st.close();
             return list;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading from MySQL", ex);
@@ -54,19 +46,18 @@ public class MakeDao {
     
     public List<Make> getByCountryCode(String countryCode) {
         List<Make> list = new ArrayList<>();
-        try {
-            PreparedStatement st = conn.prepareStatement(
-                    "SELECT id, name, countryCode"
-                            + " FROM " + TABLE_NAME
-                            + " WHERE countryCode = ?"
-                            + " ORDER BY name ASC");
+        String sql = "SELECT id, name, countryCode"
+                + " FROM " + TABLE_NAME
+                + " WHERE countryCode = ?"
+                + " ORDER BY name ASC";
+        try (Connection conn = DatabaseConnectionProvider.connect();
+            PreparedStatement st = conn.prepareStatement(sql)) {
             st.setString(1, countryCode);
-            ResultSet rs = st.executeQuery();
-            while (rs.next()) {
-                list.add(buildMake(rs));
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    list.add(buildMake(rs));
+                }
             }
-            rs.close();
-            st.close();
             return list;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading from MySQL", ex);
@@ -74,33 +65,31 @@ public class MakeDao {
     }
     
     public Make getById(int id) {
-        try {
-            PreparedStatement st = conn.prepareStatement(
-                    "SELECT id, name, countryCode"
-                            + " FROM " + TABLE_NAME
-                            + " WHERE id = ?");
+        String sql = "SELECT id, name, countryCode"
+                + " FROM " + TABLE_NAME
+                + " WHERE id = ?";
+        try (Connection conn = DatabaseConnectionProvider.connect();
+            PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, id);
-            ResultSet rs = st.executeQuery();
-            Make make = null;
-            if (rs.next()) {
-                make = buildMake(rs);
+            try (ResultSet rs = st.executeQuery()) {
+                Make make = null;
+                if (rs.next()) {
+                    make = buildMake(rs);
+                }
+                return make;
             }
-            rs.close();
-            st.close();
-            return make;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading from MySQL", ex);
         }
     }
     
     public boolean delete(int makeId) {
-        try {
-            PreparedStatement st = conn.prepareStatement(
-                    "DELETE FROM " + TABLE_NAME
-                            + " WHERE id = ?");
+        String sql = "DELETE FROM " + TABLE_NAME
+                + " WHERE id = ?";
+        try (Connection conn = DatabaseConnectionProvider.connect();
+            PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, makeId);
             int numRows = st.executeUpdate();
-            st.close();
             return numRows > 0;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading count from MySQL", ex);
@@ -108,24 +97,24 @@ public class MakeDao {
     }
     
     public final Make insert(String name, String countryCode) {
-        try {
+        String sql = "INSERT INTO " + TABLE_NAME
+                + " (name, countryCode)"
+                + " VALUES (?, ?)";
+        try (Connection conn = DatabaseConnectionProvider.connect();
             PreparedStatement st = conn.prepareStatement(
-                    "INSERT INTO " + TABLE_NAME
-                            + " (name, countryCode)"
-                            + " VALUES (?, ?)",
-                    Statement.RETURN_GENERATED_KEYS);
+                    sql,
+                    Statement.RETURN_GENERATED_KEYS)) {
             st.setString(1, name);
             st.setString(2, countryCode);
             st.executeUpdate();
-            ResultSet rs = st.getGeneratedKeys();
-            Make make = null;
-            if (rs.next()) {
-                int makeId = rs.getInt(1);
-                make = new Make(makeId, name, countryCode);
+            try (ResultSet rs = st.getGeneratedKeys()) {
+                Make make = null;
+                if (rs.next()) {
+                    int makeId = rs.getInt(1);
+                    make = new Make(makeId, name, countryCode);
+                }
+                return make;
             }
-            rs.close();
-            st.close();
-            return make;
         } catch (SQLException ex) {
             throw new RuntimeException("Error loading count from MySQL", ex);
         }
