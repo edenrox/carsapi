@@ -1,5 +1,7 @@
 package com.hopkins.carsapi;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -19,12 +21,25 @@ public final class App {
         Server server = new Server(PORT);
         ServletContextHandler context = new ServletContextHandler(server, "/*");
         context.addServlet(servlet, "/*");
-
+        
+        warmUp();
+        
         try {
             server.start();
             server.join();
         } finally {
             server.destroy();
         }
+    }
+    
+    private static void warmUp() {
+        long startTime = System.currentTimeMillis();
+        try (Connection conn = DatabaseConnectionProvider.connect()) {
+            // noop
+        } catch (SQLException ex) {
+            throw new RuntimeException("Error establishing initial connection", ex);
+        }
+        long duration = System.currentTimeMillis() - startTime;
+        System.err.println("Warm up complete, connection took: " + duration + "ms");
     }
 }
