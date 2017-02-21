@@ -1,5 +1,6 @@
 package com.hopkins.carsapi;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
 import org.eclipse.jetty.server.Server;
@@ -10,21 +11,27 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 public final class App {
-    private static final int PORT = 2222;
     
     public static void main(String[] args) throws Exception {
         ResourceConfig config = new ResourceConfig();
         config.packages("com.hopkins.carsapi");
         config.register(JacksonFeature.class);
         ServletHolder servlet = new ServletHolder(new ServletContainer(config));
+        
+        // Load the application configuration
+        Config appConfig = new Config();
+        appConfig.readProperties(new File("config.properties"));
 
-        Server server = new Server(PORT);
+        // Initialize the database connection
+        initDatabase(appConfig);
+        
+        // Configure the Jetty server
+        Server server = new Server(appConfig.getServerPort());
         ServletContextHandler context = new ServletContextHandler(server, "/*");
         context.addServlet(servlet, "/*");
         
-        warmUp();
-        
         try {
+            // Start the Jetty server
             server.start();
             server.join();
         } finally {
@@ -32,8 +39,9 @@ public final class App {
         }
     }
     
-    private static void warmUp() {
+    private static void initDatabase(Config appConfig) {
         long startTime = System.currentTimeMillis();
+        DatabaseConnectionProvider.initDataSource(appConfig);
         try (Connection conn = DatabaseConnectionProvider.connect()) {
             // noop
         } catch (SQLException ex) {
